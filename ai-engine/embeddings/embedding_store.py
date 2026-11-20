@@ -216,6 +216,9 @@ class EmbeddingStore:
             ValueError: If embeddings and metadata_list have mismatched lengths,
                 or if embeddings have incorrect dimensions.
         """
+        if isinstance(embeddings, list):
+            embeddings = np.array(embeddings)
+
         if len(embeddings) != len(metadata_list):
             raise ValueError(
                 f"Mismatch: {len(embeddings)} embeddings vs "
@@ -283,19 +286,29 @@ class EmbeddingStore:
                 f"got {query_embedding.shape}."
             )
 
-        results = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_embedding.tolist(),
-            limit=limit,
-            score_threshold=score_threshold,
-        )
+        if hasattr(self.client, "search"):
+            results = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_embedding.tolist(),
+                limit=limit,
+                score_threshold=score_threshold,
+            )
+        else:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_embedding.tolist(),
+                limit=limit,
+                score_threshold=score_threshold,
+            )
+            results = response.points
 
         matches = []
         for hit in results:
             match = {
                 "id": hit.id,
                 "score": hit.score,
-                **hit.payload,
+                "payload": hit.payload or {},
+                **(hit.payload or {}),
             }
             matches.append(match)
 
@@ -344,20 +357,31 @@ class EmbeddingStore:
             ]
         )
 
-        results = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_embedding.tolist(),
-            query_filter=video_filter,
-            limit=limit,
-            score_threshold=score_threshold,
-        )
+        if hasattr(self.client, "search"):
+            results = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_embedding.tolist(),
+                query_filter=video_filter,
+                limit=limit,
+                score_threshold=score_threshold,
+            )
+        else:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_embedding.tolist(),
+                query_filter=video_filter,
+                limit=limit,
+                score_threshold=score_threshold,
+            )
+            results = response.points
 
         matches = []
         for hit in results:
             match = {
                 "id": hit.id,
                 "score": hit.score,
-                **hit.payload,
+                "payload": hit.payload or {},
+                **(hit.payload or {}),
             }
             matches.append(match)
 

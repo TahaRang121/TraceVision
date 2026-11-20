@@ -4,7 +4,23 @@ import scipy
 import lap
 from scipy.spatial.distance import cdist
 
-from cython_bbox import bbox_overlaps as bbox_ious
+try:
+    from cython_bbox import bbox_overlaps as bbox_ious
+except ImportError:
+    def bbox_ious(atlbrs, btlbrs):
+        """Vectorized NumPy fallback for pairwise bbox IoU calculation."""
+        atlbrs = np.asarray(atlbrs, dtype=float)
+        btlbrs = np.asarray(btlbrs, dtype=float)
+        if atlbrs.size == 0 or btlbrs.size == 0:
+            return np.zeros((len(atlbrs), len(btlbrs)), dtype=float)
+        tl = np.maximum(atlbrs[:, None, :2], btlbrs[None, :, :2])
+        br = np.minimum(atlbrs[:, None, 2:], btlbrs[None, :, 2:])
+        wh = np.maximum(0.0, br - tl)
+        inter = wh[:, :, 0] * wh[:, :, 1]
+        area_a = (atlbrs[:, 2] - atlbrs[:, 0]) * (atlbrs[:, 3] - atlbrs[:, 1])
+        area_b = (btlbrs[:, 2] - btlbrs[:, 0]) * (btlbrs[:, 3] - btlbrs[:, 1])
+        union = area_a[:, None] + area_b[None, :] - inter
+        return np.where(union > 0, inter / union, 0.0)
 from yolox.tracker import kalman_filter
 import time
 

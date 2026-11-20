@@ -99,11 +99,6 @@ class PersonFeatureExtractor:
             The loaded model in eval mode on the configured device.
         """
         try:
-            from torchreid.utils import FeatureExtractor as TorchreidExtractor
-
-            # torchreid's FeatureExtractor is a convenient wrapper that
-            # handles model building, weight loading, and feature extraction.
-            # We use the lower-level model building API for more control.
             import torchreid
 
             model = torchreid.models.build_model(
