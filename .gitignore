@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*/__pycache__/
+*/**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Virtual Environments
+.venv/
+*/.venv/
+*/**/.venv/
+venv/
+*/venv/
+env/
+*/env/
+
+# Node / Frontend
+node_modules/
+*/node_modules/
+*/**/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.vite-temp/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDEs and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Output / Upload directories (preserve directory structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+person-detection/outputs/*
+!person-detection/outputs/demo/
+!person-detection/outputs/demo/**
+person-tracking/outputs/*
+!person-tracking/outputs/.gitkeep
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Model weights (allow lightweight 7.7MB yolox_nano.pth)
+*.pth
+!**/models/yolox_nano.pth
+*.pt
+*.onnx
+
+# Cache / Build artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
