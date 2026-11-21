@@ -129,3 +129,5 @@ class VideoService:
             select(Video).where(Video.id == video_id)
         )
         return result.scalar_one_or_none()
+
+    get_video_by_id = get_by_id

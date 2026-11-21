@@ -26,29 +26,23 @@ export default function SearchPage() {
     setErrorMessage('');
 
     try {
-      // Attempt backend upload
-      const refFile = referenceImages[0];
-      let searchId = 'demo-search-' + Date.now();
-
-      try {
-        const searchRes = await searchApi.createSearch(refFile);
-        if (searchRes.data?.id) {
-          searchId = searchRes.data.id;
-        }
-
-        // Upload video files in parallel
-        for (const vidFile of videoFiles) {
-          await videoApi.uploadVideo(vidFile);
-        }
-      } catch (backendError) {
-        console.warn('Backend API currently running in offline demo mode. Forwarding with simulated search session.', backendError);
+      // 1. Upload video files if selected
+      for (const vidFile of videoFiles) {
+        await videoApi.uploadVideo(vidFile);
       }
 
-      // Navigate to results page
-      navigate(`/results/${searchId}`);
+      // 2. Submit reference image to run live OSNet + Qdrant search
+      const refFile = referenceImages[0];
+      const searchRes = await searchApi.createSearch(refFile);
+      if (searchRes.data?.id) {
+        navigate(`/results/${searchRes.data.id}`);
+        return;
+      }
+      navigate('/results/demo');
     } catch (err) {
-      setErrorMessage('Encountered an issue starting the search. Navigating to demonstration view...');
-      setTimeout(() => navigate('/results/demo'), 1200);
+      console.error('Search request error:', err);
+      const detail = err.response?.data?.detail || err.message || 'Error communicating with backend API.';
+      setErrorMessage(`${detail} (Check that FastAPI backend is running on port 8000)`);
     } finally {
       setIsSubmitting(false);
     }

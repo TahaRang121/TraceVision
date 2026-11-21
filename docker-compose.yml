@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ── Relational Database ────────────────────────────────────────────────
   postgres:
@@ -11,10 +9,9 @@ services:
       POSTGRES_PASSWORD: postgrespassword
       POSTGRES_DB: tracevision
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Mount schema.sql so tables are created automatically on first run
       - ./database/postgres/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d tracevision"]
@@ -32,6 +29,42 @@ services:
       - "6334:6334" # gRPC Interface
     volumes:
       - qdrantdata:/qdrant/storage
+
+  # ── FastAPI Backend & AI Pipeline ─────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: tracevision-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgrespassword@postgres:5432/tracevision"
+      QDRANT_HOST: "qdrant"
+      QDRANT_PORT: "6333"
+      UPLOAD_DIR: "/workspace/uploads"
+    volumes:
+      - ./uploads:/workspace/uploads
+      - ./models:/workspace/models
+      - ./outputs:/workspace/outputs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  # ── React Frontend ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tracevision-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

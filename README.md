@@ -57,6 +57,10 @@ The resulting appearance embeddings are indexed in **Qdrant**, a dedicated vecto
 ```text
 TraceVision-POCs/
 │
+├── docker-compose.yml                 # Multi-container orchestration (PostgreSQL, Qdrant, Backend, Frontend)
+├── AI_CONTEXT.md                      # Authoritative AI specification, architecture, & change logs
+├── README.md                          # Master project documentation
+│
 ├── person-detection/                  # [POC 1] Existing YOLOX-Nano Person Detection POC
 │   ├── models/yolox_nano.pth
 │   ├── detect.py                     # Image detection script
@@ -69,6 +73,8 @@ TraceVision-POCs/
 │   └── outputs/
 │
 ├── frontend/                          # React.js Single Page Application
+│   ├── Dockerfile                    # Multi-stage production build (Node 20 + Nginx)
+│   ├── nginx.conf                    # Nginx reverse proxy configuration
 │   ├── src/
 │   │   ├── components/               # Navbar, FileUpload, SearchResultCard, ProcessingStatus
 │   │   ├── pages/                    # HomePage, SearchPage, ResultsPage
@@ -77,6 +83,7 @@ TraceVision-POCs/
 │   └── README.md
 │
 ├── backend/                           # FastAPI REST API Service
+│   ├── Dockerfile                    # Containerization for FastAPI & AI Pipeline
 │   ├── app/
 │   │   ├── routes/                   # /api/videos, /api/search, /api/jobs
 │   │   ├── models/models.py          # SQLAlchemy 2.0 ORM models
@@ -103,6 +110,11 @@ TraceVision-POCs/
 │   ├── requirements.txt
 │   └── README.md
 │
+├── scripts/                           # Automated Verification & Inspection Test Suites
+│   ├── verify_e2e_full.py            # 100% end-to-end integration test (Upload -> AI -> DB -> Search)
+│   ├── test_backend_api.py           # 9-endpoint FastAPI integration test suite
+│   └── db_inspect.py                 # PostgreSQL schema inspection & migration helper
+│
 ├── docs/                              # Project Documentation & Presentation Materials
 │   ├── architecture/                 # System architecture, sequence, pipeline & data flow
 │   ├── database/                     # Dual-database design & lifecycle documentation
@@ -113,9 +125,7 @@ TraceVision-POCs/
 │   ├── videos/
 │   └── references/
 │
-├── outputs/                           # Annotated video exports & detection logs
-│
-└── README.md                          # Master project documentation
+└── outputs/                           # Annotated video exports & detection logs
 ```
 
 ---
@@ -150,16 +160,33 @@ For complete technical diagrams and architectural specifications, see:
 | **Person Tracking POC** | ✅ Completed | ByteTrack trajectory tracking validated with persistent IDs. |
 | **Database Design** | ✅ Completed | PostgreSQL `schema.sql`, ER diagram, and Qdrant collection ready. |
 | **Architecture Docs** | ✅ Completed | 4 comprehensive architecture diagrams and technical specifications. |
-| **AI Integration Engine** | ✅ Draft Ready | OSNet 512-dim extractor, Qdrant store, `VideoProcessor` pipeline. |
-| **Backend API Service** | ✅ Draft Ready | FastAPI routes for `/videos`, `/search`, `/jobs` with OpenCV metadata. |
-| **Frontend Web App** | ✅ Draft Ready | React SPA with dark theme, drag-and-drop, and demo presentation mode. |
-| **End-to-End Live Hookup** | 🔲 Planned | Connect Celery worker queue to trigger live pipeline on uploads. |
+| **AI Integration Engine** | ✅ Completed | OSNet 512-dim extractor, Qdrant store, `VideoProcessor` pipeline. |
+| **Backend API Service** | ✅ Completed | FastAPI routes for `/videos`, `/search`, `/jobs` with OpenCV metadata & DB persistence. |
+| **Frontend Web App** | ✅ Completed | React SPA with dark theme, drag-and-drop, and demo presentation mode. |
+| **End-to-End Live Hookup** | ✅ Completed | Fully verified live ingestion, YOLOX-ByteTrack-OSNet pipeline, and Qdrant cosine search (`verify_e2e_full.py`). |
+| **Docker Containerization** | ✅ Completed | Multi-container stack (Nginx frontend, FastAPI AI backend, PostgreSQL, Qdrant) via `docker-compose.yml`. |
 
 ---
 
 ## 7. Getting Started
 
-### 1. Backend Setup
+### Option A: Quickstart with Docker Compose (Recommended)
+
+Run the entire TraceVision platform with a single command:
+```bash
+docker compose up -d --build
+```
+
+- **Frontend Console:** `http://localhost:3000`
+- **FastAPI Documentation:** `http://localhost:8000/docs`
+- **Qdrant Vector Dashboard:** `http://localhost:6333/dashboard`
+- **PostgreSQL Database:** `localhost:5433` (Database: `tracevision`, User: `postgres`, Password: `postgrespassword`)
+
+---
+
+### Option B: Local Development Setup
+
+#### 1. Backend Setup
 ```bash
 cd backend
 python -m venv .venv
@@ -169,7 +196,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 Interactive API documentation will be available at `http://localhost:8000/docs`.
 
-### 2. Frontend Setup
+#### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
@@ -177,10 +204,19 @@ npm run dev
 ```
 Access the application at `http://localhost:5173/`.
 
-### 3. AI Engine Setup
+#### 3. AI Engine Setup
 ```bash
 cd ai-engine
 pip install -r requirements.txt
+```
+
+#### 4. Run Automated Integration Verification
+```bash
+# Test full end-to-end pipeline (Upload -> YOLOX/ByteTrack/OSNet -> Qdrant -> Cosine Search)
+python scripts/verify_e2e_full.py
+
+# Test all 9 FastAPI REST endpoints
+python scripts/test_backend_api.py
 ```
 
 ---

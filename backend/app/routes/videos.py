@@ -6,7 +6,7 @@ API endpoints for video uploading, listing, and metadata retrieval.
 
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -22,6 +22,7 @@ router = APIRouter(prefix="/videos", tags=["Videos"])
 @router.post("/upload", response_model=VideoResponse, status_code=status.HTTP_201_CREATED)
 async def upload_video(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -30,7 +31,7 @@ async def upload_video(
     - Stores the video in `uploads/videos/`
     - Extracts metadata via OpenCV (fps, resolution, duration, total frames)
     - Records video metadata in PostgreSQL
-    - Automatically queues a processing job for the video
+    - Automatically queues a processing job for the video and starts AI pipeline
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected")
@@ -45,9 +46,21 @@ async def upload_video(
     try:
         video = await VideoService.save_upload(file=file, db=db)
         # Automatically create processing job
-        await ProcessingService.create_job(video_id=video.id, db=db)
+        job = await ProcessingService.create_job(video_id=video.id, db=db)
+        await db.commit()
+
+        # Trigger AI pipeline in background
+        if background_tasks is not None:
+            background_tasks.add_task(
+                ProcessingService.execute_pipeline_task,
+                video.id,
+                video.file_path,
+                job.id,
+            )
+
         return video
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to process video upload: {str(e)}")
 
 
@@ -76,7 +89,7 @@ async def get_video(
     db: AsyncSession = Depends(get_db),
 ):
     """Retrieve details and metadata for a specific video by UUID."""
-    video = await VideoService.get_video_by_id(video_id=video_id, db=db)
+    video = await VideoService.get_by_id(video_id=video_id, db=db)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
     return video

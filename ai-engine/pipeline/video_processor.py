@@ -143,6 +143,7 @@ class VideoProcessor:
         frame_idx = 0
         frames_processed = 0
         unique_tracks = set()
+        track_stats = {}
         embeddings_stored = 0
 
         embeddings_batch = []
@@ -181,6 +182,24 @@ class VideoProcessor:
                     track_id = int(target.track_id)
                     score = float(target.score)
                     unique_tracks.add(track_id)
+
+                    # Update persistent track interval statistics
+                    if track_id not in track_stats:
+                        track_stats[track_id] = {
+                            "track_id": track_id,
+                            "first_frame": frame_idx,
+                            "last_frame": frame_idx,
+                            "first_timestamp": round(timestamp, 2),
+                            "last_timestamp": round(timestamp, 2),
+                            "total_appearances": 1,
+                            "conf_sum": score,
+                        }
+                    else:
+                        ts = track_stats[track_id]
+                        ts["last_frame"] = frame_idx
+                        ts["last_timestamp"] = round(timestamp, 2)
+                        ts["total_appearances"] += 1
+                        ts["conf_sum"] += score
 
                     x1 = max(0, int(tlbr[0]))
                     y1 = max(0, int(tlbr[1]))
@@ -232,6 +251,18 @@ class VideoProcessor:
             "embeddings_stored": embeddings_stored,
             "processing_time_seconds": round(elapsed_time, 2),
             "fps_achieved": round(frames_processed / max(1e-5, elapsed_time), 2),
+            "tracks": [
+                {
+                    "track_id": ts["track_id"],
+                    "first_frame": ts["first_frame"],
+                    "last_frame": ts["last_frame"],
+                    "first_timestamp": ts["first_timestamp"],
+                    "last_timestamp": ts["last_timestamp"],
+                    "total_appearances": ts["total_appearances"],
+                    "avg_confidence": round(ts["conf_sum"] / max(1, ts["total_appearances"]), 4),
+                }
+                for ts in track_stats.values()
+            ],
         }
 
         logger.info("Video processing complete for %s: %s", video_id, summary)

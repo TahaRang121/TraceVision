@@ -284,6 +284,7 @@ F:\TraceVision-POCs/
 │
 ├── AI_CONTEXT.md                      # [THIS FILE] Authoritative AI system specification & evolution log
 ├── README.md                          # Master project documentation
+├── docker-compose.yml                 # Multi-container orchestration (PostgreSQL, Qdrant, Backend, Frontend)
 │
 ├── person-detection/                  # [POC 1] Pre-existing YOLOX-Nano POC (DO NOT TOUCH)
 │   ├── models/yolox_nano.pth          # Pretrained YOLOX-Nano weights (CPU/GPU)
@@ -315,13 +316,14 @@ F:\TraceVision-POCs/
 │   │   └── embedding_store.py        # EmbeddingStore (Qdrant client wrapper, cosine distance)
 │   ├── pipeline/                     # Execution pipelines
 │   │   ├── __init__.py
-│   │   ├── video_processor.py        # VideoProcessor: Frame -> Detect -> Track -> OSNet -> Qdrant
+│   │   ├── video_processor.py        # VideoProcessor: Frame -> Detect -> Track -> OSNet -> Qdrant + Track Stats
 │   │   ├── query_processor.py        # QueryProcessor: Reference image -> Embedding -> Qdrant search
 │   │   └── pipeline_config.py        # Unified configuration for detection, tracking, ReID & storage
 │   ├── requirements.txt              # PyTorch, TorchVision, Torchreid, Qdrant-Client, OpenCV
 │   └── README.md                     # AI Engine technical documentation
 │
 ├── backend/                           # Python FastAPI REST Backend
+│   ├── Dockerfile                    # Containerization for FastAPI & AI Pipeline
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                   # FastAPI initialization, CORS, static mounts, lifespan
@@ -358,6 +360,8 @@ F:\TraceVision-POCs/
 │   └── README.md                     # Data persistence architecture guide
 │
 ├── frontend/                          # React.js SPA (Vite + Dark UI)
+│   ├── Dockerfile                    # Multi-stage production build (Node 20 + Nginx)
+│   ├── nginx.conf                    # Nginx reverse proxy configuration for SPA & /api/ routes
 │   ├── src/
 │   │   ├── assets/                   # Static icons and logos
 │   │   ├── components/
@@ -380,6 +384,11 @@ F:\TraceVision-POCs/
 │   ├── tsconfig.json                 # Standardized TypeScript/IDE config
 │   ├── jsconfig.json                 # Standardized JavaScript IntelliSense config
 │   └── README.md                     # Frontend user guide
+│
+├── scripts/                           # System Verification & Diagnostic Automation
+│   ├── verify_e2e_full.py            # End-to-end system test (Upload -> YOLOX/ByteTrack/OSNet -> Qdrant -> Search)
+│   ├── test_backend_api.py           # 9-endpoint FastAPI & PostgreSQL integration test suite
+│   └── db_inspect.py                 # Direct PostgreSQL schema verification & column migration script
 │
 ├── docs/                              # Project Presentation & Architecture Docs
 │   ├── architecture/
@@ -463,17 +472,19 @@ F:\TraceVision-POCs/
 | **POC 2: Tracking** | ByteTrack Video Tracking | ✅ Completed | Verified in `person-tracking/third_party/ByteTrack` |
 | **AI Engine** | OSNet Feature Extractor | ✅ Implemented | `ai-engine/person_reid/feature_extractor.py` (512-dim) |
 | **AI Engine** | Qdrant Embedding Store | ✅ Implemented | `ai-engine/embeddings/embedding_store.py` (Cosine, 512-dim) |
-| **AI Engine** | Video Ingestion Pipeline | ✅ Implemented | `ai-engine/pipeline/video_processor.py` |
+| **AI Engine** | Video Ingestion Pipeline | ✅ Implemented | `ai-engine/pipeline/video_processor.py` (with interval statistics) |
 | **AI Engine** | Search Query Processor | ✅ Implemented | `ai-engine/pipeline/query_processor.py` |
-| **Database** | PostgreSQL Schema (`schema.sql`) | ✅ Implemented | 6 tables with UUID PKs, FK cascades, constraints |
+| **Database** | PostgreSQL Schema (`schema.sql`) | ✅ Implemented | 6 tables with UUID PKs, FK cascades, nullable references |
 | **Database** | Qdrant Collection Design | ✅ Implemented | Payload indexing on `video_id` & `track_id` |
 | **Backend API** | SQLAlchemy 2.0 Models | ✅ Implemented | `backend/app/models/models.py` |
 | **Backend API** | Pydantic v2 Schemas | ✅ Implemented | `backend/app/schemas/schemas.py` |
-| **Backend API** | REST Routes (/videos, /search, /jobs) | ✅ Implemented | `backend/app/routes/` |
+| **Backend API** | REST Routes (/videos, /search, /jobs) | ✅ Implemented | `backend/app/routes/` with automated pipeline triggers |
 | **Backend API** | Video Service (OpenCV Metadata) | ✅ Implemented | `backend/app/services/video_service.py` |
 | **Frontend** | React + Vite Setup | ✅ Implemented | Production build passes (0 errors) |
-| **Frontend** | Upload Console & Preview | ✅ Implemented | `frontend/src/pages/SearchPage.jsx` |
-| **Frontend** | Results Dashboard & Cards | ✅ Implemented | `frontend/src/pages/ResultsPage.jsx` |
+| **Frontend** | Upload Console & Preview | ✅ Implemented | `frontend/src/pages/SearchPage.jsx` (direct backend API hookup) |
+| **Frontend** | Results Dashboard & Cards | ✅ Implemented | `frontend/src/pages/ResultsPage.jsx` (live & demo presentation mode) |
+| **End-to-End Live Hookup** | Real-Time Ingestion & Search | ✅ Completed | 100% verified pipeline via `scripts/verify_e2e_full.py` |
+| **Containerization** | Docker & Compose Orchestration | ✅ Completed | `docker-compose.yml`, backend Dockerfile, frontend Nginx container |
 | **Integration** | Celery/Redis Worker Queue | 🔲 Planned | For production distributed async pipeline execution |
 | **Integration** | Live Camera Stream (RTSP) | 🔲 Planned | Future enhancement for live CCTV camera streams |
 
@@ -485,7 +496,7 @@ F:\TraceVision-POCs/
 - **Operating System:** Windows 10/11
 - **Python Version:** 3.10+
 - **Node.js Version:** 18+
-- **PostgreSQL:** 14+ (Local port 5432)
+- **PostgreSQL:** 14+ (Local port 5433 via Docker, or 5432)
 - **Qdrant:** 1.7+ (Local port 6333)
 
 ### GPU Benchmark (Google Colab - NVIDIA Tesla T4)
@@ -498,7 +509,18 @@ F:\TraceVision-POCs/
 
 ## 10. Execution Quickstart Guide
 
-### 1. Launching Backend Service
+### 1. Docker Compose Launch (Recommended Full-Stack)
+```powershell
+cd F:\TraceVision-POCs
+docker compose up -d --build
+```
+Services exposed:
+- React Frontend & Nginx Proxy: `http://localhost:3000`
+- FastAPI Interactive Swagger Docs: `http://localhost:8000/docs`
+- Qdrant Vector Dashboard: `http://localhost:6333/dashboard`
+- PostgreSQL Port: `localhost:5433` (`tracevision` / `postgrespassword`)
+
+### 2. Launching Backend Service Locally
 ```powershell
 cd F:\TraceVision-POCs\backend
 python -m venv .venv
@@ -508,7 +530,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 Interactive Swagger docs: `http://localhost:8000/docs`
 
-### 2. Launching Frontend Web App
+### 3. Launching Frontend Web App Locally
 ```powershell
 cd F:\TraceVision-POCs\frontend
 npm install
@@ -516,7 +538,16 @@ npm run dev
 ```
 Web console: `http://localhost:5173/`
 
-### 3. Testing AI Engine Standalone
+### 4. Running Automated System Verification Suites
+```powershell
+# Run end-to-end AI pipeline verification (PostgreSQL + Qdrant + YOLOX + ByteTrack + OSNet)
+python scripts/verify_e2e_full.py
+
+# Run backend API 9-endpoint integration tests
+python scripts/test_backend_api.py
+```
+
+### 5. Testing AI Engine Standalone
 ```powershell
 cd F:\TraceVision-POCs\ai-engine
 pip install -r requirements.txt
@@ -546,3 +577,4 @@ Whenever an AI assistant modifies the codebase in future sessions, follow this p
 | **2026-11-19** | `v0.4.0` | Taha Rangwala | Implemented complete React.js frontend (Vite, dark theme UI, drag-and-drop upload, result cards, mock presentation dataset), created presentation talking points and wireframes. | `frontend/`, `docs/ui-ux/`, `docs/presentation/`, root `README.md` |
 | **2026-11-19** | `v0.4.1` | Taha Rangwala | Fixed TypeScript configuration errors in `tsconfig.json`, added `jsconfig.json`, ran `npm install` and verified production build passes with 0 errors. | `frontend/tsconfig.json`, `frontend/jsconfig.json` |
 | **2026-11-20** | `v1.0.0` | Taha Rangwala | Created master AI context document (`AI_CONTEXT.md`) with comprehensive Mermaid diagrams (architecture, sequence, AI pipeline, ER, data flow) and defined future maintenance protocols. | `AI_CONTEXT.md`, `README.md` |
+| **2026-11-21** | `v1.1.0` | Taha Rangwala | Hooked up live end-to-end AI pipeline (VideoProcessor track statistics, ProcessingService DB persistence, SearchService live query re-id), adjusted PostgreSQL schema and SQLAlchemy models for flexible references, added complete Docker containerization (multi-stage frontend Nginx proxy, backend AI container, docker-compose orchestration), and verified full test suites (`verify_e2e_full.py`, `test_backend_api.py`). | `ai-engine/pipeline/video_processor.py`, `backend/`, `database/postgres/schema.sql`, `docker-compose.yml`, `frontend/`, `scripts/`, `AI_CONTEXT.md`, `README.md` |

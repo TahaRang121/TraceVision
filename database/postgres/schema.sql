@@ -35,7 +35,7 @@ COMMENT ON COLUMN users.password_hash IS 'Bcrypt / Argon2 hashed password — ne
 -- only the path and metadata are stored here.
 CREATE TABLE videos (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id             UUID            NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id             UUID            REFERENCES users(id) ON DELETE CASCADE,
     filename            VARCHAR(255)    NOT NULL,
     original_filename   VARCHAR(255)    NOT NULL,
     file_path           VARCHAR(500)    NOT NULL,
@@ -120,7 +120,7 @@ COMMENT ON COLUMN detected_persons.qdrant_point_ids IS 'Array of Qdrant point ID
 -- A user-initiated search: "find this person across all processed videos."
 CREATE TABLE search_requests (
     id                      UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id                 UUID            NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id                 UUID            REFERENCES users(id) ON DELETE CASCADE,
     reference_image_path    VARCHAR(500)    NOT NULL,
     status                  VARCHAR(20)     NOT NULL DEFAULT 'pending',
     created_at              TIMESTAMP       NOT NULL DEFAULT NOW(),
@@ -144,8 +144,8 @@ COMMENT ON COLUMN search_requests.reference_image_path IS 'Path to the uploaded 
 CREATE TABLE search_results (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
     search_request_id   UUID            NOT NULL REFERENCES search_requests(id) ON DELETE CASCADE,
-    detected_person_id  UUID            NOT NULL REFERENCES detected_persons(id) ON DELETE CASCADE,
-    video_id            UUID            NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    detected_person_id  UUID            REFERENCES detected_persons(id) ON DELETE CASCADE,
+    video_id            UUID            REFERENCES videos(id) ON DELETE CASCADE,
     similarity_score    FLOAT           NOT NULL,
     rank                INT             NOT NULL,
     matched_frame       INT,

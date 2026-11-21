@@ -105,8 +105,8 @@ class SearchResultResponse(BaseModel):
     """Response schema for a single search result with enriched details."""
     id: uuid.UUID
     search_request_id: uuid.UUID
-    detected_person_id: uuid.UUID
-    video_id: uuid.UUID
+    detected_person_id: Optional[uuid.UUID] = None
+    video_id: Optional[uuid.UUID] = None
     similarity_score: float
     rank: int
     matched_frame: Optional[int] = None

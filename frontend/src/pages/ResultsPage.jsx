@@ -16,19 +16,19 @@ export default function ResultsPage() {
     try {
       if (searchId && searchId !== 'demo') {
         const response = await searchApi.getSearchResults(searchId);
-        if (response.data && response.data.results && response.data.results.length > 0) {
+        if (response.data && response.data.search_request) {
           setData(response.data);
           setIsSimulated(false);
           setLoading(false);
           return;
         }
       }
-      // If demo or backend has no results yet, load high-fidelity presentation results
+      // If demo mode or fallback
       const mockData = getPresentationMockResults(searchId);
       setData(mockData);
       setIsSimulated(true);
     } catch (err) {
-      console.info('Using presentation demonstration dataset for seamless review.');
+      console.warn('Backend query error, falling back to presentation mode:', err);
       const mockData = getPresentationMockResults(searchId);
       setData(mockData);
       setIsSimulated(true);
